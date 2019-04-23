@@ -1,7 +1,11 @@
+import os
+import uuid
+from urllib.request import urlopen
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+
 import pho2txt
-import os
 
 app = Flask(__name__)
 CORS(app)
@@ -26,19 +30,27 @@ class InvalidUsage(Exception):
 @app.route('/files', methods=['POST'])
 def make_recognition():
     try:
-        image = request.files['image']
+        filename = str(uuid.uuid4()) + '.jpg'
+        file = open(filename, 'xb+')
 
-        file = open(image.filename, 'rb+')
-        image.save(dst=file)
+        if request.form.get('url'):
+            file.write(urlopen(request.form.get('url')).read())
+        else:
+            image = request.files['image']
+            image.save(dst=file)
+
         file.close()
 
-        text = pho2txt.to_txt(image.filename, 'ta')
-        os.remove(image.filename)
+        recognizer = pho2txt.PhotoToTxt(filename)
+        rects, confidence = recognizer.text_detection()
+        text = recognizer.text_recognition(rects)
+
+        os.remove(filename)
 
         return jsonify(text)
-    
-    except Exception:
-        response = jsonify({"message": "Internal server error"})
+
+    except Exception as e:
+        response = jsonify({"message": str(e)})
         response.status_code = 500
         return response
 
