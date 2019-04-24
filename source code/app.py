@@ -27,6 +27,14 @@ class InvalidUsage(Exception):
         return rv
 
 
+def check_extension(filename):
+    valid_extension = ['jpg', 'jpeg', 'png']
+    file_extension = filename.split('.')[-1]
+
+    if file_extension not in valid_extension:
+        raise FileNotFoundError
+
+
 @app.route('/files', methods=['POST'])
 def make_recognition():
     try:
@@ -37,6 +45,7 @@ def make_recognition():
             file.write(urlopen(request.form.get('url')).read())
         else:
             image = request.files['image']
+            check_extension(image.filename)
             image.save(dst=file)
 
         file.close()
@@ -48,6 +57,11 @@ def make_recognition():
         os.remove(filename)
 
         return jsonify(text)
+
+    except FileNotFoundError:
+        response = jsonify({"message": "Server does not recognize files with this extension!"})
+        response.status_code = 501
+        return response
 
     except Exception as e:
         response = jsonify({"message": str(e)})
